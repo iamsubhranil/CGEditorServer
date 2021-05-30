@@ -1,7 +1,7 @@
 // Access the callback-based API
 var amqp = require("amqplib/callback_api");
 // THIS SHOULD BE A SECRET
-const CLOUDAMQP_URL = process.env.AMQP_URL;
+const CLOUDAMQP_URL = process.env.AMQPURL;
 const COMMAND_QUEUE_NAME = "__cge_internal_command_queue";
 
 var receiverChannel = null;
