@@ -56,3 +56,14 @@ amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 		channel.consume(COMMAND_QUEUE_NAME, processCommand, { noAck: true });
 	});
 });
+
+// bind to a port, otherwise heroku kills us,
+// and also producer needs to wake us
+
+var http = require("http");
+var server = http.createServer(function (req, res) {
+	res.writeHead(200, { "Content-Type": "text/plain" });
+	res.write("[x] Server is awake!");
+	console.log("[x] Server is woke up by ping!");
+});
+server.listen(process.env.PORT);
