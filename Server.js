@@ -1,12 +1,10 @@
 // Access the callback-based API
 var amqp = require("amqplib/callback_api");
 // THIS SHOULD BE A SECRET
-const CLOUDAMQP_URL =
-	"amqp://xbxuskpq:wKNXtDdOJvkF5kxAb98yCf9eMfYE3EW8@puffin.rmq2.cloudamqp.com/xbxuskpq";
+const CLOUDAMQP_URL = process.env.AMQP_URL;
 const COMMAND_QUEUE_NAME = "__cge_internal_command_queue";
 
 var receiverChannel = null;
-var amqp = require("amqplib/callback_api");
 
 function processQueueWrapper(q) {
 	return function (msg) {
