@@ -2,6 +2,9 @@
 var amqp = require("amqplib/callback_api");
 // THIS SHOULD BE A SECRET
 const CLOUDAMQP_URL = process.env.AMQPURL;
+if (CLOUDAMQP_URL == null || CLOUDAMQP_URL.length == 0) {
+	console.log("[!] Error: Set AMQPURL environment variable first!");
+}
 const COMMAND_QUEUE_NAME = "__cge_internal_command_queue";
 
 var receiverChannel = null;
@@ -66,4 +69,8 @@ var server = http.createServer(function (req, res) {
 	res.write("[x] Server is awake!");
 	console.log("[x] Server is woke up by ping!");
 });
-server.listen(process.env.PORT);
+const PORT = process.env.PORT;
+if (PORT == null || PORT.length == 0) {
+	console.log("[!] Error: Set PORT environment variable first!");
+}
+server.listen(PORT);
