@@ -1,6 +1,7 @@
 // Access the callback-based API
 var amqp = require("amqplib/callback_api");
 // THIS SHOULD BE A SECRET
+//const CLOUDAMQP_URL = 'amqps://xbxuskpq:RkcS4WW62YPZLE6hPULkqviRShxRAyaI@puffin.rmq2.cloudamqp.com/xbxuskpq';
 const CLOUDAMQP_URL = process.env.AMQPURL;
 if (CLOUDAMQP_URL == null || CLOUDAMQP_URL.length == 0) {
 	console.log("[!] Error: Set AMQPURL environment variable first!");
@@ -41,6 +42,7 @@ amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 	if (error0) {
 		throw error0;
 	}
+	// Receiving Queue
 	connection.createChannel(function (error1, channel) {
 		if (error1) {
 			throw error1;
@@ -57,6 +59,21 @@ amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 
 		receiverChannel = channel;
 		channel.consume(COMMAND_QUEUE_NAME, processCommand, { noAck: true });
+	});
+	// Broadcast Queue
+	connection.createChannel(function(error1, channel) {
+		if (error1) {
+		  throw error1;
+		}
+		var exchange = 'server_sendingQueue';
+		var msg = process.argv.slice(2).join(' ') || 'Hello World!';
+
+		channel.assertExchange(exchange, 'fanout', {
+			durable: false
+		});
+		channel.publish(exchange, '', Buffer.from(msg));
+		console.log(" [x] Sent %s", msg);
+		send = false;
 	});
 });
 
