@@ -1,14 +1,17 @@
 // Access the callback-based API
 var amqp = require("amqplib/callback_api");
 // THIS SHOULD BE A SECRET
-//const CLOUDAMQP_URL = 'amqps://xbxuskpq:RkcS4WW62YPZLE6hPULkqviRShxRAyaI@puffin.rmq2.cloudamqp.com/xbxuskpq';
-const CLOUDAMQP_URL = process.env.AMQPURL;
+const CLOUDAMQP_URL =
+	"amqps://xbxuskpq:RkcS4WW62YPZLE6hPULkqviRShxRAyaI@puffin.rmq2.cloudamqp.com/xbxuskpq";
+//const CLOUDAMQP_URL = process.env.AMQPURL;
 if (CLOUDAMQP_URL == null || CLOUDAMQP_URL.length == 0) {
 	console.log("[!] Error: Set AMQPURL environment variable first!");
 }
 const COMMAND_QUEUE_NAME = "__cge_internal_command_queue";
 
-var receiverChannel = null;
+var channel = null;
+
+var send = false;
 
 function processQueueWrapper(q) {
 	return function (msg) {
@@ -19,6 +22,7 @@ function processQueueWrapper(q) {
 				"[x] Received in '" + q + "': ",
 				msg.content.toString()
 			);
+			send = true;
 		}
 	};
 }
@@ -27,12 +31,16 @@ function processCommand(msg) {
 	console.log("[x] CommandQueue: " + msg.content.toString());
 	var parts = msg.content.toString().split(" ");
 	if (parts[0] == "add") {
-		receiverChannel.assertQueue(parts[1], { durable: false });
-		receiverChannel.consume(parts[1], processQueueWrapper(parts[1]), {
+		channel.assertQueue(parts[1], { durable: false });
+		channel.assertQueue(parts[2], { durable: false });
+
+		channel.consume(parts[1], processQueueWrapper(parts[1]), {
 			noAck: true,
 		});
+		channel.sendToQueue(parts[2], Buffer.from("hello"));
 	} else if (parts[0] == "remove") {
-		receiverChannel.deleteQueue(parts[1]);
+		channel.deleteQueue(parts[1]);
+		channel.deleteQueue(parts[2]);
 	} else {
 		console.log("Invalid command '" + parts[0] + "'!");
 	}
@@ -57,24 +65,32 @@ amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 			COMMAND_QUEUE_NAME
 		);
 
-		receiverChannel = channel;
+		channel = channel;
 		channel.consume(COMMAND_QUEUE_NAME, processCommand, { noAck: true });
+		//send = true;
 	});
 	// Broadcast Queue
-	connection.createChannel(function(error1, channel) {
+	connection.createChannel(function (error1, channel) {
 		if (error1) {
-		  throw error1;
+			throw error1;
 		}
-		var exchange = 'server_sendingQueue';
-		var msg = process.argv.slice(2).join(' ') || 'Hello World!';
+		var exchange = "server_sendingQueue";
+		var msg = process.argv.slice(2).join(" ") || "Hello World!";
 
-		channel.assertExchange(exchange, 'fanout', {
-			durable: false
+		channel.assertExchange(exchange, "fanout", {
+			durable: false,
 		});
-		channel.publish(exchange, '', Buffer.from(msg));
+		//if (send === true) {
+		channel.publish(exchange, "", Buffer.from(msg));
 		console.log(" [x] Sent %s", msg);
 		send = false;
+		//}
 	});
+
+	/*setTimeout(function() {
+		connection.close();
+		process.exit(0);
+	  }, 500);*/
 });
 
 // bind to a port, otherwise heroku kills us,
