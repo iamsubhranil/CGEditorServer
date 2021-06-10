@@ -27,26 +27,31 @@ function processQueueWrapper(q) {
 	};
 }
 
+var receiving_queue = "";
+var sending_queue = "";
+
 function processCommand(msg) {
 	console.log("[x] CommandQueue: " + msg.content.toString());
 	var parts = msg.content.toString().split(" ");
+	receiving_queue = parts[1];
+	sending_queue = parts[2];
 	if (parts[0] == "add") {
-		serverChannel.assertQueue(parts[1], { durable: false });
-		serverChannel.assertQueue(parts[2], { durable: false });
+		serverChannel.assertQueue(sending_queue, { durable: false });
+		serverChannel.assertQueue(receiving_queue, { durable: false });
 
-		serverChannel.consume(parts[1], processQueueWrapper(parts[1]), {
+		serverChannel.consume(receiving_queue, processQueueWrapper(parts[1]), {
 			noAck: true,
 		});
-		//var msg = process.argv.slice(2).join(" ") || "Hello World!";
-		serverChannel.sendToQueue(parts[2], Buffer.from("Hello"));
+		var msg = process.argv.slice(2).join(" ") || "Hello World!";
+		serverChannel.sendToQueue(sending_queue, Buffer.from(msg, "ascii"));
+		console.log("[-] Sent to " + sending_queue + " ---> ", msg);
 	} else if (parts[0] == "remove") {
-		serverChannel.deleteQueue(parts[1]);
-		serverChannel.deleteQueue(parts[2]);
+		serverChannel.deleteQueue(receiving_queue);
+		serverChannel.deleteQueue(sending_queue);
 	} else {
 		console.log("Invalid command '" + parts[0] + "'!");
 	}
 }
-
 
 amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 	if (error0) {
@@ -71,7 +76,7 @@ amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 		channel.consume(COMMAND_QUEUE_NAME, processCommand, { noAck: true });
 		//send = true;
 	});
-	// Broadcast Queue
+	/*// Broadcast Queue
 	connection.createChannel(function (error1, channel) {
 		if (error1) {
 			throw error1;
@@ -87,7 +92,7 @@ amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 		console.log(" [x] Sent %s", msg);
 		send = false;
 		//}
-	});
+	});*/
 
 	/*setTimeout(function() {
 		connection.close();
@@ -112,5 +117,5 @@ server.listen(PORT);
 
 setInterval(function () {
 	var msg = process.argv.slice(2).join(" ") || "Hello World!";
-	serverChannel.sendToQueue(parts[2], Buffer.from(msg));
+	serverChannel.sendToQueue(sending_queue, Buffer.from(msg));
 }, 1000 * 60 * 5);
