@@ -9,7 +9,7 @@ if (CLOUDAMQP_URL == null || CLOUDAMQP_URL.length == 0) {
 }
 const COMMAND_QUEUE_NAME = "__cge_internal_command_queue";
 
-var channel = null;
+var serverChannel = null;
 
 var send = false;
 
@@ -31,20 +31,22 @@ function processCommand(msg) {
 	console.log("[x] CommandQueue: " + msg.content.toString());
 	var parts = msg.content.toString().split(" ");
 	if (parts[0] == "add") {
-		channel.assertQueue(parts[1], { durable: false });
-		channel.assertQueue(parts[2], { durable: false });
+		serverChannel.assertQueue(parts[1], { durable: false });
+		serverChannel.assertQueue(parts[2], { durable: false });
 
-		channel.consume(parts[1], processQueueWrapper(parts[1]), {
+		serverChannel.consume(parts[1], processQueueWrapper(parts[1]), {
 			noAck: true,
 		});
-		channel.sendToQueue(parts[2], Buffer.from("hello"));
+		//var msg = process.argv.slice(2).join(" ") || "Hello World!";
+		serverChannel.sendToQueue(parts[2], Buffer.from("Hello"));
 	} else if (parts[0] == "remove") {
-		channel.deleteQueue(parts[1]);
-		channel.deleteQueue(parts[2]);
+		serverChannel.deleteQueue(parts[1]);
+		serverChannel.deleteQueue(parts[2]);
 	} else {
 		console.log("Invalid command '" + parts[0] + "'!");
 	}
 }
+
 
 amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 	if (error0) {
@@ -65,7 +67,7 @@ amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 			COMMAND_QUEUE_NAME
 		);
 
-		channel = channel;
+		serverChannel = channel;
 		channel.consume(COMMAND_QUEUE_NAME, processCommand, { noAck: true });
 		//send = true;
 	});
@@ -107,3 +109,8 @@ if (PORT == null || PORT.length == 0) {
 	console.log("[!] Error: Set PORT environment variable first!");
 }
 server.listen(PORT);
+
+setInterval(function () {
+	var msg = process.argv.slice(2).join(" ") || "Hello World!";
+	serverChannel.sendToQueue(parts[2], Buffer.from(msg));
+}, 1000 * 60 * 5);
