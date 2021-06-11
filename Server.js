@@ -1,9 +1,7 @@
 // Access the callback-based API
 var amqp = require("amqplib/callback_api");
 // THIS SHOULD BE A SECRET
-const CLOUDAMQP_URL =
-	"amqps://xbxuskpq:RkcS4WW62YPZLE6hPULkqviRShxRAyaI@puffin.rmq2.cloudamqp.com/xbxuskpq";
-//const CLOUDAMQP_URL = process.env.AMQPURL;
+const CLOUDAMQP_URL = process.env.AMQPURL;
 if (CLOUDAMQP_URL == null || CLOUDAMQP_URL.length == 0) {
 	console.log("[!] Error: Set AMQPURL environment variable first!");
 }
@@ -13,7 +11,11 @@ var serverChannel = null;
 
 var send = false;
 
-function processQueueWrapper(q) {
+var pendingChanges = {};
+
+function processQueueWrapper(q, rq) {
+	// add to transformer queue
+	pendingChanges[rq] = [];
 	return function (msg) {
 		if (msg == null) {
 			console.log("[x] Queue removed: " + q);
@@ -23,25 +25,28 @@ function processQueueWrapper(q) {
 				msg.content.toString()
 			);
 			send = true;
+			// add to transformer queue
+			pendingChanges[rq].push(msg.content.toString());
 		}
 	};
 }
 
-var receiving_queue = "";
-var sending_queue = "";
-
 function processCommand(msg) {
 	console.log("[x] CommandQueue: " + msg.content.toString());
 	var parts = msg.content.toString().split(" ");
-	receiving_queue = parts[1];
-	sending_queue = parts[2];
+	var receiving_queue = parts[1];
+	var sending_queue = parts[2];
 	if (parts[0] == "add") {
 		serverChannel.assertQueue(sending_queue, { durable: false });
 		serverChannel.assertQueue(receiving_queue, { durable: false });
 
-		serverChannel.consume(receiving_queue, processQueueWrapper(parts[1]), {
-			noAck: true,
-		});
+		serverChannel.consume(
+			receiving_queue,
+			processQueueWrapper(parts[1], parts[2]),
+			{
+				noAck: true,
+			}
+		);
 		var msg = process.argv.slice(2).join(" ") || "Hello World!";
 		serverChannel.sendToQueue(sending_queue, Buffer.from(msg, "ascii"));
 		console.log("[-] Sent to " + sending_queue + " ---> ", msg);
@@ -115,7 +120,18 @@ if (PORT == null || PORT.length == 0) {
 }
 server.listen(PORT);
 
-setInterval(function () {
-	var msg = process.argv.slice(2).join(" ") || "Hello World!";
-	serverChannel.sendToQueue(sending_queue, Buffer.from(msg));
-}, 1000 * 60 * 5);
+function transformChanges() {
+	for (var rq in pendingChanges) {
+		// TRANSFORMATION
+		// synchronize the list access
+		if (pendingChanges[rq].length > 0) {
+			serverChannel.sendToQueue(
+				rq,
+				Buffer.from(JSON.stringify(pendingChanges[rq]))
+			);
+		}
+		pendingChanges[rq] = [];
+	}
+}
+
+setInterval(transformChanges, 1000 * 10);
