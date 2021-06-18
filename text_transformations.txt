@@ -1,0 +1,58 @@
+1. Changes will be represented by a list of operations.
+2. Primarily there will be two operations -> Copy and Insert.
+3. Copy will have a range specified as its arguments. It will signify that 
+	texts in the specified range have to be copied from the source to 
+	the transformed text.
+4. Insert will have a string specified as its argument, and its implicit insert 
+	location will be (1 + the ending range of last Copy operation).
+
+
+	0-1,4-rest 
+	apebanana
+	0-2,5-rest
+	appbanana
+
+	applebanana
+			4-5,y
+		i
+	1.0-3,x,4-9,l -->
+	applxebanana
+		j
+	2.0-5,y,6-9
+	applebyanana
+
+	3.0-3,x,4-5,y,6-rest
+	applxebyanana
+
+Let us consider the two lists of operations to be merged are pointed by i and j 
+respectively. There are 4 cases that may happen :
+	1. Both i and j point to a copy range:
+		i points to a-b
+		j points to c-d
+		1.1. No intersection between the ranges
+				Find the relative ordering of the ranges, and add them to the final
+				list in that order.
+		1.2. Ranges are intersecting
+			1.2.1. One range is a subset of the other
+					// Ignore the larger range, because in the smaller range that 
+					signifies delete. (Requires Changes)
+			1.2.2. Two ranges intersect at the boundaries
+					a and b or b and c intersects
+						0-5 and 0-2,x,3-7 -> 3-5 inserted in final list, 6-7
+											inserted in second list
+						So, find the intersecting range, insert it as a copy
+						to the final list. Increment the pointer which points
+						to the list containing 0-5. Modify 3-7 to 6-7 in the
+						list in place without incrementing its pointer.
+	2. One points to a copy, another points to an insert
+		0-7,x,8-10 <-- i points to x
+		0-8,y,10 <-- j points to 0-8
+	3. Both i and j point to an insert
+		0-8,x + 0-9,y  -> 0-8,x,9,y
+		Find the ending indices of the ranges at (i-1) and (j-1). Whichever is lesser,
+		do that insertion first, and then do the second. Increment both pointers.
+
+
+
+		0-5,a,6-10
+		7-9,y,10		0-5,a,6-9,y,10
