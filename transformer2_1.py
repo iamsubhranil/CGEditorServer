@@ -48,8 +48,10 @@ def merge_transformations2(operations1, operations2):
                 transformed.append(first)
             elif rtype == NO_INTERSECT:
                 # transformed.append(second)
+                # Both operations are to be skipped as each range is to be deleted in the other operation
                 pass
             elif rtype == SUBSET:
+                #print(first, second, rtype, add_i, add_j)
                 transformed.append(second)
                 first[1] = second[2] + 1
             elif rtype == INTERSECT:
@@ -65,7 +67,7 @@ def merge_transformations2(operations1, operations2):
                 start1 = operations1[i - 1][2]
             start2 = 0
             if j != 0:
-                start2 = operations1[j - 1][2]
+                start2 = operations2[j - 1][2]
             if start1 == start2:
                 # both of them starts at the same position
                 # we're giving preference to t1 for now
@@ -108,7 +110,7 @@ def apply_transformation(text, operations):
 
 
 def main():
-    for i in range(9):
+    for i in range(10):
         cases = i
         if cases == 0:
             operations_a = [[1, 'pqr'],  [0, 9, 10]]
@@ -133,15 +135,18 @@ def main():
             operations_a = [[0, 0, 5], [0, 7, 10], [1, 'xyz']]
             operations_b = [[0, 0, 4], [0, 6, 8], [1, 'pqr'], [0, 9, 10]]
         elif cases == 7:
-            operations_a = [[1, 'xyz'], [0, 5, 7], [1, 'pqr'], [0, 8, 10]]
-            operations_b = [[1, 'pqr'], [0, 7, 10]]
+            operations_b = [[1, 'xyz'], [0, 5, 7], [1, 'pqr'], [0, 8, 10]]
+            operations_a = [[1, 'pqr'], [0, 7, 10]]
         elif cases == 8:
             operations_a = [[0, 0, 1], [1, 'ricot'], [0, 5, 10]]
             operations_b = [[0, 0, 4], [1, ' '], [0, 5, 10]]
+        elif cases == 9:
+            operations_a = [[0, 0, 1], [1, 'hola'], [0, 5, 10]]
+            operations_b = [[0, 3, 4], [1, ' '], [0, 5, 10]]
         # All these situations are resolved            
         else:
             pass
-        print()
+        print("Case: ", i)
         print("a: ", operations_a)
         print("b: ", operations_b)
         t = merge_transformations2(operations_a, operations_b)
