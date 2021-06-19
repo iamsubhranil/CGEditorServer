@@ -1,0 +1,76 @@
+Transformation
+
+
+Idea:
+
+When multiple users accessing a same collaborative editor and performing some operations 
+(insertion, deletion, updation) on it, then these operation needs to be transformed before 
+applying to the text. So operational transformation plays a very important role. 
+
+
+How we are doing this:
+
+When server receives multiple operations from multiple users , then it applies the OT on the first 
+two operations and merges them, then apply the recently merged operation with the third operation and so on.
+And at last, apply the final merged operation on the text. So every users receives consistent copy of 
+the document. 
+
+
+Format we maintained:
+
+Each operation is a collection of suboperations and each suboperation can basically be of 2 types -
+1. Copy - Marked by '0'
+2. Insert - marked by '1'
+Ranges of the text that are unaltered are "copied", characters that are added are "inserted" and
+ranges that are to be deleted are simply not copied.
+So each operation is maintained in the following format:
+	User1- [ [0,0,5], [1,xyz], [0,6,10] ]
+This operation means to say that User1 wants to first copy the range 0-5, then insert ‘xyz’ and 
+at last again copy 6-10. 
+One instance of deletion is illustrated below:
+	User2-[ [0,0,5], [1,xyz], [0,8,10] ]
+So User2 wants to first copy 0-5 , then insert ‘xyz’ and last again copy 8-10. The range 6-7 is not 
+specified in any of these range, that means this range(6-7) is to be deleted.
+
+
+Details of each case (Case-wise algorithm):
+
+Suppose two users want to apply a operations which is in the above mentioned format, 
+there are only four cases can occur  for copying ranges, namely-  EQUAL, NO_INTERSECT, SUBSET, INTERSECT. 
+EQUAL- When both users want to copy the same range.
+User1- [[0,0,5], [1,xyz]]			User2- [[0,0,5], [1,pqr]]
+
+NO_INTERSECT- When both users want to copy and the range is not intersecting to each others.
+User1- [[0,0,5], [1,xyz]]			User2- [[0,6,10], [1,pqr]]
+
+SUBSET- When both users want to copy and range of one user is within the range of another.
+User1- [[0,0,5], [1,xyz]]			User2- [[0,1,3], [1,pqr]]
+
+INTERSECT- When both users want to copy and the range is intersecting to each others.
+User1- [[0,0,5], [1,xyz]]			User2- [[0,3,10], [1,pqr]]
+
+Case 1- When both the users want to copy
+	Case 1.1 - And the range for both are same, 
+				then append the range and increment index for both as both are doing the same suboperation.
+	Case 1.2 - No intersecting point,
+				then this means that each range is to be deleted in the other operation, so skip both.
+	Case 1.3 -But one is a subset of the other, 
+				then first copy the subset range and
+				update the starting position of the outer range to ending position of inner range + 1 
+                Then increment the index of the operation having inner range by 1.
+	Case 1.4 - But the ranges are intersecting, 
+				then copy the intersecting range first
+				And update the starting position of the later range to ending position of earlier range + 1.
+Case 2 - If both users want to insert,
+		then first insert the text of 1st operation and then that of the 2nd
+		The ordering is provided automatically by RabbitMQ server.
+Case 3 - If User1 is trying to insert and User2 trying to copy, 
+		then insert the text of User1 and 
+		increment the index(i) for User1 by one to point to the next suboperation.
+Case 4 - If User2 is trying to insert and User1 trying to copy, 
+		then insert the text of User2 and 
+		increment the index(j) for User2 by one to point to the next suboperation.
+
+A loop runs to merge all the suboperations of the 2 operations into a single transformed operation.
+If there are more than 2 operations to be merged then that too can be achieved by transforming the first 2 operations
+and thereafter transforming the resultant merged operation with the next operations one by one.
