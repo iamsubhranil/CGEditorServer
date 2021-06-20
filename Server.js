@@ -13,6 +13,13 @@ var send = false;
 
 var pendingChanges = {};
 
+/**
+ * Processes the queues to check if any message is received, if received then 
+ * push it to corresponding list of pendingChanges
+ * @param {string} q Sending Queue name
+ * @param {string} rq Receiving Queue name
+ * @returns {function} Function to execute after callback
+ */
 function processQueueWrapper(q, rq) {
 	// add to transformer queue
 	pendingChanges[rq] = [];
@@ -31,6 +38,10 @@ function processQueueWrapper(q, rq) {
 	};
 }
 
+/**
+ * Identifies the operation of adding or removing queues for each client
+ * @param {JSON} msg The operation message received from client
+ */
 function processCommand(msg) {
 	console.log("[x] CommandQueue: " + msg.content.toString());
 	var parts = msg.content.toString().split(" ");
@@ -57,6 +68,7 @@ function processCommand(msg) {
 		console.log("Invalid command '" + parts[0] + "'!");
 	}
 }
+
 
 amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 	if (error0) {
@@ -120,6 +132,9 @@ if (PORT == null || PORT.length == 0) {
 }
 server.listen(PORT);
 
+/**
+ * Function to perform OT
+ */
 function transformChanges() {
 	for (var rq in pendingChanges) {
 		// TRANSFORMATION
