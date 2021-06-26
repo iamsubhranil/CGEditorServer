@@ -118,7 +118,12 @@ function transformChanges() {
 		// TRANSFORMATION
 		// synchronize the list access
 		if (pendingChanges[rq].length > 0) {
-			serverChannel.sendToQueue(rq, Buffer.from(pendingChanges[rq]));
+			var toSend = JSON.stringify({ changesToUpdate: pendingChanges[rq] });
+			console.log("[x] Sending : ", pendingChanges[rq]);
+			serverChannel.sendToQueue(
+				rq,
+				Buffer.from(toSend)
+			);
 		}
 		pendingChanges[rq] = [];
 	}
