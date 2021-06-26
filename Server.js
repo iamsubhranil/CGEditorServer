@@ -16,7 +16,7 @@ var send = false;
 var pendingChanges = {};
 
 /**
- * Processes the queues to check if any message is received, if received then 
+ * Processes the queues to check if any message is received, if received then
  * push it to corresponding list of pendingChanges
  * @param {string} q Sending Queue name
  * @param {string} rq Receiving Queue name
@@ -35,7 +35,9 @@ function processQueueWrapper(q, rq) {
 			);
 			send = true;
 			// add to transformer queue
-			pendingChanges[rq].push(msg.content.toString());
+			pendingChanges[rq] = pendingChanges[rq].concat(
+				JSON.parse(msg.content.toString()).operation_list
+			);
 		}
 	};
 }
@@ -60,9 +62,6 @@ function processCommand(msg) {
 				noAck: true,
 			}
 		);
-		var msg = process.argv.slice(2).join(" ") || "Hello World!";
-		serverChannel.sendToQueue(sending_queue, Buffer.from(msg, "ascii"));
-		console.log("[-] Sent to " + sending_queue + " ---> ", msg);
 	} else if (parts[0] == "remove") {
 		serverChannel.deleteQueue(receiving_queue);
 		serverChannel.deleteQueue(sending_queue);
@@ -70,7 +69,6 @@ function processCommand(msg) {
 		console.log("Invalid command '" + parts[0] + "'!");
 	}
 }
-
 
 amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 	if (error0) {
@@ -95,28 +93,6 @@ amqp.connect(CLOUDAMQP_URL, function (error0, connection) {
 		channel.consume(COMMAND_QUEUE_NAME, processCommand, { noAck: true });
 		//send = true;
 	});
-	/*// Broadcast Queue
-	connection.createChannel(function (error1, channel) {
-		if (error1) {
-			throw error1;
-		}
-		var exchange = "server_sendingQueue";
-		var msg = process.argv.slice(2).join(" ") || "Hello World!";
-
-		channel.assertExchange(exchange, "fanout", {
-			durable: false,
-		});
-		//if (send === true) {
-		channel.publish(exchange, "", Buffer.from(msg));
-		console.log(" [x] Sent %s", msg);
-		send = false;
-		//}
-	});*/
-
-	/*setTimeout(function() {
-		connection.close();
-		process.exit(0);
-	  }, 500);*/
 });
 
 // bind to a port, otherwise heroku kills us,
@@ -142,10 +118,7 @@ function transformChanges() {
 		// TRANSFORMATION
 		// synchronize the list access
 		if (pendingChanges[rq].length > 0) {
-			serverChannel.sendToQueue(
-				rq,
-				Buffer.from(JSON.stringify(pendingChanges[rq]))
-			);
+			serverChannel.sendToQueue(rq, Buffer.from(pendingChanges[rq]));
 		}
 		pendingChanges[rq] = [];
 	}
