@@ -126,4 +126,4 @@ function transformChanges() {
 	}
 }
 
-setInterval(transformChanges, 1000 * 10);
+setInterval(transformChanges, 1000 * 1);
