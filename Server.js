@@ -32,7 +32,7 @@ var clientOperations = [];
  */
 function processQueueWrapper(q, rq) {
 	// add to transformer queue
-	pendingChanges[rq] = [];
+	pendingChanges[rq] = {};
 	return function (msg) {
 		if (msg == null) {
 			console.log("[x] Queue removed: " + q);
@@ -43,18 +43,23 @@ function processQueueWrapper(q, rq) {
 			);
 			send = true;
 			// add to transformer queue
-			client = JSON.parse(msg.content.toString()).clientID;
+			var received_msg = JSON.parse(msg.content.toString());
+			client = received_msg.clientID.toString();
 			clientOperations[client] = [];
 			//clientOperations[client] = clientOperations[client].concat(
 			//	JSON.parse(msg.content.toString()).operation_list
 			//);
-			clientOperations[client].push(
-				JSON.parse(msg.content.toString()).operation_list
-			);
-			pendingChanges[rq][client] = []; // How to concat?
-			pendingChanges[rq][client] = pendingChanges[rq][client].concat(
-				JSON.parse(msg.content.toString()).operation_list
-			);
+			//clientOperations[client].push(
+			//	JSON.parse(msg.content.toString()).operation_list
+			//);
+			//pendingChanges[rq][client] = []; // How to concat?
+			if (pendingChanges[rq][client] == null) {
+				pendingChanges[rq][client] = received_msg.operation_list;
+			} else {
+				pendingChanges[rq][client].push(
+					received_msg.operation_list
+				);
+			}
 			//console.log("clientOperations= ",clientOperations);
 			//console.log(pendingChanges[rq]);
 		}
@@ -364,14 +369,14 @@ function transformChanges() {
 		console.log("pending_changes = ", pendingChanges[rq]);
 		// TRANSFORMATION
 		// synchronize the list access
-		if (pendingChanges[rq].length > 0) {
-			//for (var c in pendingChanges[rq]) {
-			var toSend = JSON.stringify(pendingChanges[rq]);
+		//if (pendingChanges[rq].length > 0) {
+		for (let c in pendingChanges[rq]) {
+			var toSend = JSON.stringify(pendingChanges[rq][c]);
 			console.log("[x] Sending : ", toSend);
 			serverChannel.sendToQueue(rq, Buffer.from(toSend));
-			//}
-			pendingChanges[rq] = [];
 		}
+		pendingChanges[rq] = [];
+		//}
 	}
 }
 
