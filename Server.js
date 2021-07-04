@@ -22,6 +22,10 @@ var sending_queue = "";
 
 // 2D array to hold the operations of all the clients in a session
 var clientOperations = [];
+var clientIDkeep = ['0'];
+var receive_op = [];
+var arr = [];
+var temp = [];
 
 /**
  * Processes the queues to check if any message is received, if received then
@@ -30,8 +34,16 @@ var clientOperations = [];
  * @param {string} rq Receiving Queue name
  * @returns {function} Function to execute after callback
  */
+ 
+ function include(clientIDkeep, obj) {
+  for (var i = 0; i < clientIDkeep.length; i++) {
+    if (clientIDkeep[i] == obj) return true;
+  }
+  return false;
+}
 function processQueueWrapper(q, rq) {
 	// add to transformer queue
+	global_recceiving = rq;
 	pendingChanges[rq] = {};
 	return function (msg) {
 		if (msg == null) {
@@ -45,25 +57,53 @@ function processQueueWrapper(q, rq) {
 			// add to transformer queue
 			var received_msg = JSON.parse(msg.content.toString());
 			client = received_msg.clientID.toString();
-			clientOperations[client] = [];
-			//clientOperations[client] = clientOperations[client].concat(
-			//	JSON.parse(msg.content.toString()).operation_list
-			//);
-			//clientOperations[client].push(
-			//	JSON.parse(msg.content.toString()).operation_list
-			//);
-			//pendingChanges[rq][client] = []; // How to concat?
+			console.log("***********client_ID = ",client);
+			console.log("*********received_msg = ",received_msg.operation_list);
+			
+		//	arr[client][i].push(received_msg.operation_list);
+			
+			
+			if( (include(clientIDkeep, client)) == false ) // true
+			{
+				clientIDkeep.push(client);
+			}
+		
+			arr[client] = received_msg.operation_list;
+		//	arr[client] = received_msg.operation_list;
+		//	console.log("********arr = ",arr);
+			
+		/*	for(var i=0;i<clientIDkeep.length;i++)
+			{
+				console.log("*******arr[i] = ", arr[i]);
+			}*/
+			
 			if (pendingChanges[rq][client] == null) {
 				pendingChanges[rq][client] = received_msg.operation_list;
+			//	console.log("hi 1");
 			} else {
+			//	console.log("hi 2");
 				pendingChanges[rq][client].push(
 					received_msg.operation_list
 				);
 			}
-			//console.log("clientOperations= ",clientOperations);
-			//console.log(pendingChanges[rq]);
+			
+			
+		/*	temp.push(Object.values(pendingChanges[rq][client]));
+			console.log("*********temp = ",temp);
+			console.log("*********temp_length = ",temp.length);*/
+			
+		//	console.log("*****************receive_op = ",receive_op[0][1]);
+			
+		/*	for(var i=0;i<clientIDkeep.length;i++)
+			{
+				console.log("*****************pendingChanges[rq][i] = ",pendingChanges[rq][i]);
+			}
+			console.log("*****************pendingChanges = ",pendingChanges[rq]);
+			console.log("*****************pendingChanges_length = ",pendingChanges[rq].length);*/
+		
 		}
 	};
+	
 }
 
 /**
@@ -223,6 +263,8 @@ function order_ranges(range1, range2) {
  * @returns {object} The merged operation equivalent of the 2 operations given
  */
 function merge_transformations2(operations1, operations2) {
+	console.log("operations1 = ",operations1);
+	console.log("operations2 = ",operations2);
 	var i = 0;
 	var j = 0;
 	var transformed = [];
@@ -299,73 +341,81 @@ function merge_transformations2(operations1, operations2) {
 }
 
 //----------------------------------------------
-/*var flag_count = 1;
-var op_a, op_b;
-var flag = 0;
-//var transformed = []; //stores 3d array
-//var final_transformed = []; //stores 2d array
-var count = 2;
+
+var transformed = []; //stores 3d array
+var final_transformed = []; //stores 2d array
+var op_a = [];
 /**
  * Function to perform OT
  */
-//function transformChanges() {
-
-//part1
-/*	for (var rq in pendingChanges) {
-		if (pendingChanges[rq].length > 0)
+ 
+function transformChanges() {
+	//try1
+/*	console.log("**********In transform************");
+	for(var i=0;i<clientIDkeep.length;i++)
+	{
+		console.log("*******arr[i] = ", arr[i]);
+	}*/
+	
+	if(clientIDkeep.length>=2)
+	{
+		op_a = arr[0];
+		for(var i=1; i<clientIDkeep.length;i++)
 		{
-			transformed.push(pendingChanges[rq]);
-			i=i+1;
+			op_a = merge_transformations2(op_a, arr[i]);
+		}
+		console.log("********final Transformed op = ",op_a);
+	}
+	
+	
+//	console.log("******pendingChanges = ",pendingChanges);
+	//try2
+/*	if(clientIDkeep.length>=2)
+	{
+		for (var rq in pendingChanges)
+		{
+			for (var i=0;pendingChanges[rq].length;i++)
+			{
+				
+				if(i==0)
+				{
+					console.log("hi 1");
+					op_a = pendingChanges[rq][i];
+					console.log("------------",op_a)
+				}
+				else{
+					console.log("hi 2");
+					console.log("------------",pendingChanges[rq][i]);
+					op_a = merge_transformations2(op_a,pendingChanges[rq][i]);
+				}
+			}
+		}
+		console.log("********final Transformed op = ",op_a);
+	}*/
+
+	//try3
+	
+/*	for (var rq in pendingChanges)
+	{
+		for(var i=0; i<pendingChanges[rq].length; i++)
+		{
+			console.log("---------");
+			console.log("pending_changes = ", pendingChanges[rq][i]);
+			transformed.push(transformed[i]);
 		}
 	}
-	console.log("Transformed op = ",transformed);
-	for(var i=0; i<transformed.length; i++)
-	{
-		final_transformed.push(transformed[i]);
-	}
-	for(var i=0; i<final_transformed.length; i++)
+	console.log("********Transformed op = ",transformed);*/
+/*	for(var i=0; i<final_transformed.length; i++)
 	{
 		for(var j=0; j<final_transformed.length; j++)
 		{
-			console.log("final Transformed op = ",final_transformed[i][j]);
+			console.log("********final Transformed op = ",final_transformed[i][j]);
 		}
 	}*/
-
-//part2
+	
+	
+	
 /*	for (var rq in pendingChanges) {
-		if (pendingChanges[rq].length < 2) continue;
-		if (flag_count == 1) {
-			console.log(flag_count);
-			op_a = pendingChanges[rq][0];
-		} else if (flag_count == 2) {
-			console.log(flag_count);
-			op_b = pendingChanges[rq][1];
-		}
-
-		if (flag_count < 2) {
-			console.log("In continue");
-			flag_count += 1;
-			continue;
-		} else {
-			if (flag == 0) {
-				console.log("flag= ", flag);
-				flag_count += 1;
-				op_a = merge_transformations2(op_a, op_b);
-				flag = 1;
-			} /*else {
-				console.log("flag= ", flag);
-				op_a = merge_transformations2(
-					op_a,
-					pendingChanges[rq][count++]
-				);
-			}
-		}
-	}
-	console.log("Transformed op=", op_a);*/
-
-//------------------------------------------------------------------------------
-function transformChanges() {
-	for (var rq in pendingChanges) {
 		console.log("pending_changes = ", pendingChanges[rq]);
 		// TRANSFORMATION
 		// synchronize the list access
@@ -377,7 +427,7 @@ function transformChanges() {
 		}
 		pendingChanges[rq] = [];
 		//}
-	}
+	}*/
 }
 
 setInterval(transformChanges, 1000 * 1);
