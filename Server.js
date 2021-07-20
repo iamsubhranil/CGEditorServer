@@ -12,6 +12,8 @@ const COMMAND_QUEUE_NAME = "__cge_internal_command_queue";
 var serverChannel = null;
 
 var pendingChanges = {};
+var fileMap = {}; // maps a filename to a receiving queue
+var contentMap = {}; // maps filecontent to filename
 
 /**
  * Processes the queues to check if any message is received, if received then
@@ -27,6 +29,7 @@ function processQueueWrapper(q, rq) {
 	return function (msg) {
 		if (msg == null) {
 			console.log("[x] Queue removed: " + q);
+			fileMap[rq] = null;
 		} else {
 			console.log(
 				"[x] Received in '" + q + "': ",
@@ -76,6 +79,33 @@ function processCommand(msg) {
 		serverChannel.deleteQueue(sending_queue);
 	} else {
 		console.log("Invalid command '" + parts[0] + "'!");
+	}
+	if (parts[3] != "") {
+		/*
+		for (var a in fileMap) {
+			if (fileMap[a] == parts[3]) {
+				return;
+			}
+		}
+		// If file name is unique then add to fileMap
+		// otherwise should send an error, but YOLO!
+		*/
+		fileMap[sending_queue] = parts[3];
+		// Handling of existing file name is not done yet
+		// Blank File name is also not handled.
+		// Unique File name must be provided at the start of a new session
+		console.log(contentMap);
+		if (parts[3] in contentMap) {
+			console.log("Found");
+			serverChannel.sendToQueue(
+				sending_queue,
+				Buffer.from(JSON.stringify([1, contentMap[parts[3]]]))
+			);
+		} else {
+			contentMap[parts[3]] = "";
+		}
+	} else {
+		fileMap[sending_queue] = null;
 	}
 }
 
@@ -308,8 +338,52 @@ function transformChanges() {
 			rq,
 			Buffer.from(JSON.stringify(mergedOperations))
 		);
+		// apply to local copy of the document
+		// anirban: I don't think this is correct. We should not be applying the operations to the local copy.
+		// 			We should be applying them to the document.
+		// subhranil: I agree.
+		// 			I'm not sure if this is the correct place to do this. I think it should be done in the
+		// 			onMessage callback. But I'm not sure where to do it.
+		// anubhab: I agree.
+		// 			I think it should be done in the onMessage callback.
+		if (fileMap[rq] != null) {
+			var localCopy = applyTransformation(
+				mergedOperations,
+				contentMap[fileMap[rq]]
+			);
+			contentMap[fileMap[rq]] = localCopy;
+		}
+		console.log(contentMap);
 		pendingChanges[rq] = {};
 	}
+}
+
+/**
+ * Applies the operation list on the given text
+ */
+function applyTransformation(operations, text) {
+	var finaltext = "";
+	for (var i = 0; i < operations.length; i++) {
+		// we sent multiple flushes, since each flush resets our
+		// operation array, a new range starting with 0 denotes
+		// it is part of a later flush.
+		if (
+			i > 0 &&
+			operations[i][0] == 0 &&
+			operations[i][1] == 0 &&
+			operations[i][2] <= finaltext.length
+		) {
+			text = finaltext;
+			finaltext = "";
+		} //Insertion at beginning was wrongly handled by this block
+		op = operations[i];
+		if (op[0] == 1) {
+			finaltext += op[1];
+		} else {
+			finaltext += text.slice(op[1], op[2]);
+		}
+	}
+	return finaltext;
 }
 
 setInterval(transformChanges, 1000 * 1);
