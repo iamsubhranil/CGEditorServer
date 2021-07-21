@@ -99,7 +99,7 @@ function processCommand(msg) {
 			console.log("Found");
 			serverChannel.sendToQueue(
 				sending_queue,
-				Buffer.from(JSON.stringify([1, contentMap[parts[3]]]))
+				Buffer.from(JSON.stringify([[1, contentMap[parts[3]]]]))
 			);
 		} else {
 			contentMap[parts[3]] = "";
